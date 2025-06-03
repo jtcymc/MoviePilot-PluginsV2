@@ -172,7 +172,7 @@ class ProwlarrExtend(_PluginBase):
                 "id": f'{self.plugin_name}-{v["indexerId"]}',
                 "name": f'{self.plugin_name}-{v["indexerName"]}',
                 "url": f'{self._host}/api/v1/indexer/{v["indexerId"]}',
-                "domain": self.prowlarr_domain.replace(self.plugin_author, v["indexerId"]),
+                "domain": self.prowlarr_domain.replace(self.plugin_author, str(v["indexerId"])),
                 "public": True,
                 "proxy": False,
             } for v in ret_indexers]
@@ -428,7 +428,7 @@ class ProwlarrExtend(_PluginBase):
                 'content': [
                     {
                         'component': 'td',
-                        'text': site.get("id")
+                        'text': site.get("name")
                     },
                     {
                         'component': 'td',
