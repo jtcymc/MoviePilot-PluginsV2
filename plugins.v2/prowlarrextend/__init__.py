@@ -66,9 +66,7 @@ class ProwlarrExtend(_PluginBase):
             self._enabled = config.get("enabled")
             self._proxy = config.get("proxy")
             self._onlyonce = config.get("onlyonce")
-            self._cron = config.get("cron")
-            if not self._cron:
-                self._cron = "0 0 */24 * *"
+            self._cron = config.get("cron") or "0 0 */24 * *"
 
         # 停止现有任务
         self.stop_service()
@@ -374,7 +372,7 @@ class ProwlarrExtend(_PluginBase):
                                             'type': 'info',
                                             'variant': 'tonal',
                                             'text': '日志出现报如下错误时，可以不用管，由于插件没有检索到数据会触发后续模块检索，导致错误'
-                                                    'indexer - 【JackettExtend】ACG.RIP 搜索出错：NoneType object has no attribute get'
+                                                    'indexer - 【ProwlarrExtend】ACG.RIP 搜索出错：NoneType object has no attribute get'
                                         }
                                     }
                                 ]
