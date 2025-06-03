@@ -160,14 +160,11 @@ class ProwlarrExtend(_PluginBase):
         indexer_query_url = f"{self._host}/api/v1/indexerstats"
         try:
             ret = RequestUtils(headers=headers).get_res(indexer_query_url)
-            if not ret:
-                return []
-            if not ret.json():
+            if not ret or not ret.json():
                 return []
             ret_indexers = ret.json()["indexers"]
-            if not ret or ret_indexers == [] or ret is None:
+            if not ret_indexers:
                 return []
-
             indexers = [{
                 "id": f'{self.plugin_name}-{v["indexerId"]}',
                 "name": f'{self.plugin_name}-{v["indexerName"]}',
