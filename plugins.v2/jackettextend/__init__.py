@@ -201,7 +201,7 @@ class JackettExtend(_PluginBase):
             if not ret.json():
                 return []
             indexers = [{
-                "id": f'{self.plugin_name}-{v["name"]}',
+                "id": f'{self.plugin_name}-{v["id"]}',
                 "name": f'{self.plugin_name}-{v["name"]}',
                 "url": f'{self._host}/api/v2.0/indexers/{v["id"]}/results/torznab/',
                 "domain": self.jackett_domain.replace(self.plugin_author, v["id"]),
@@ -491,7 +491,7 @@ class JackettExtend(_PluginBase):
                                         'props': {
                                             'type': 'success',
                                             'variant': 'tonal',
-                                            'text': '将“查看数据”列表中 “站点名称” => 站点管理 新增站点 站点名+ https://或http:// 直接新增'}
+                                            'text': '将“查看数据”列表中 “站点domain” => 站点管理 新增站点 站点名+ https://或http:// 直接新增'}
                                     }
                                 ]
                             }
@@ -605,7 +605,7 @@ class JackettExtend(_PluginBase):
                                                         'props': {
                                                             'class': 'text-start ps-4'
                                                         },
-                                                        'text': '站点名称'
+                                                        'text': '站点domain'
                                                     },
                                                     {
                                                         'component': 'th',
