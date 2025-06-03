@@ -134,6 +134,18 @@ class ProwlarrExtend(_PluginBase):
             "api_key": self._api_key
         })
 
+    def get_api(self) -> List[Dict[str, Any]]:
+        """
+        获取插件API
+        [{
+            "path": "/xx",
+            "endpoint": self.xxx,
+            "methods": ["GET", "POST"],
+            "summary": "API说明"
+        }]
+        """
+        pass
+
     def get_indexers(self):
         """
         获取配置的prowlarr indexer
@@ -267,12 +279,11 @@ class ProwlarrExtend(_PluginBase):
                                 },
                                 'content': [
                                     {
-                                        'component': 'VTextField',
+                                        'component': 'VSwitch',
                                         'props': {
-                                            'model': 'cron',
-                                            'label': '更新周期',
-                                            'placeholder': '0 0 */24 * *',
-                                            'hint': '索引列表更新周期，支持5位cron表达式，默认每24小时运行一次'
+                                            'model': 'onlyonce',
+                                            'label': '立即运行一次',
+                                            'hint': '打开后立即运行一次获取索引器列表，否则需要等到预先设置的更新周期才会获取'
                                         }
                                     }
                                 ]
@@ -285,11 +296,12 @@ class ProwlarrExtend(_PluginBase):
                                 },
                                 'content': [
                                     {
-                                        'component': 'VSwitch',
+                                        'component': 'VTextField',
                                         'props': {
-                                            'model': 'onlyonce',
-                                            'label': '立即运行一次',
-                                            'hint': '打开后立即运行一次获取索引器列表，否则需要等到预先设置的更新周期才会获取'
+                                            'model': 'cron',
+                                            'label': '更新周期',
+                                            'placeholder': '0 0 */24 * *',
+                                            'hint': '索引列表更新周期，支持5位cron表达式，默认每24小时运行一次'
                                         }
                                     }
                                 ]

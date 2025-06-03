@@ -236,7 +236,7 @@ class JackettExtend(_PluginBase):
         }]
         """
 
-    pass
+        pass
 
     def __parse_torznab_xml(self, url) -> List[TorrentInfo]:
         """
