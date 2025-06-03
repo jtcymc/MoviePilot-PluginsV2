@@ -1,0 +1,54 @@
+{
+  "JackettShaw": {
+    "name": "Jackett",
+    "description": "索引器支持检索Jackett站点资源",
+    "labels": "索引器,Jackett",
+    "version": "1.2",
+    "icon": "Jackett_A.png",
+    "author": "shaw",
+    "level": 1,
+    "history": {
+      "v1.0": "适配MoviePilot V2 版本",
+      "v1.1": "优化逻辑，增加数据缓存",
+      "v1.2": "适配更多BT源"
+    }
+  },
+  "ProwlarrShaw": {
+    "name": "Prowlarr",
+    "description": "索引器支持检索Prowlarr站点资源",
+    "labels": "索引器,Prowlarr",
+    "version": "1.2",
+    "icon": "Prowlarr.png",
+    "author": "shaw",
+    "level": 1,
+    "history": {
+      "v1.0": "适配MoviePilot V2 版本",
+      "v1.1": "优化逻辑，增加数据缓存",
+      "v1.2": "适配更多BT源"
+    }
+  },
+  "JackettExtend": {
+    "name": "JackettExtend",
+    "description": "扩展检索以支持 Jackett 站点资源",
+    "labels": "索引器,JackettExtend",
+    "version": "1.0",
+    "icon": "Jackett_A.png",
+    "author": "shaw",
+    "level": 1,
+    "history": {
+      "v1.0": "适配MoviePilot V2 版本"
+    }
+  },
+  "ProwlarrExtend": {
+    "name": "ProwlarrExtend",
+    "description": "扩展检索以支持Prowlarr站点资源",
+    "labels": "索引器,Prowlarr",
+    "version": "1.0",
+    "icon": "Prowlarr.png",
+    "author": "shaw",
+    "level": 1,
+    "history": {
+      "v1.0": "适配MoviePilot V2 版本"
+    }
+  }
+}
