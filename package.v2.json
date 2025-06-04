@@ -3,24 +3,26 @@
     "name": "JackettExtend",
     "description": "扩展检索以支持 Jackett 站点资源",
     "labels": "索引器,Jackett",
-    "version": "1.0",
+    "version": "1.1",
     "icon": "Jackett_A.png",
     "author": "shaw",
     "level": 1,
     "history": {
-      "v1.0": "适配MoviePilot V2 版本"
+      "v1.0": "适配MoviePilot V2 版本",
+      "v1.1": "修复已知问题"
     }
   },
   "ProwlarrExtend": {
     "name": "ProwlarrExtend",
     "description": "扩展检索以支持Prowlarr站点资源",
     "labels": "索引器,Prowlarr",
-    "version": "1.0",
+    "version": "1.1",
     "icon": "Prowlarr.png",
     "author": "shaw",
     "level": 1,
     "history": {
-      "v1.0": "适配MoviePilot V2 版本"
+      "v1.0": "适配MoviePilot V2 版本",
+      "v1.1": "修复已知问题"
     }
   }
 }

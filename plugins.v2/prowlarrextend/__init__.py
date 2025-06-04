@@ -1,11 +1,11 @@
 # _*_ coding: utf-8 _*_
+import copy
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
 import re
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from cachetools import cached, TTLCache
 from app.helper.sites import SitesHelper
 
 from app.core.context import TorrentInfo
@@ -25,7 +25,7 @@ class ProwlarrExtend(_PluginBase):
     # 插件图标
     plugin_icon = "Prowlarr.png"
     # 插件版本
-    plugin_version = "1.0"
+    plugin_version = "1.1"
     # 插件作者
     plugin_author = "jtcymc"
     # 作者主页
@@ -94,8 +94,9 @@ class ProwlarrExtend(_PluginBase):
             domain = indexer.get("domain", "")
             site_info = self.sites_helper.get_indexer(domain)
             if not site_info:
+                new_indexer = copy.deepcopy(indexer)
                 # sites_helper 添加prowlarr_indexer
-                self.sites_helper.add_indexer(domain, indexer)
+                self.sites_helper.add_indexer(domain, new_indexer)
 
     def get_status(self):
         """
@@ -146,6 +147,18 @@ class ProwlarrExtend(_PluginBase):
         """
         pass
 
+    def get_module(self) -> Dict[str, Any]:
+        """
+        获取插件模块声明，用于胁持系统模块实现（方法名：方法实现）
+        {
+            "id1": self.xxx1,
+            "id2": self.xxx2,
+        }
+        """
+        return {
+            "search_torrents": self.search_torrents,
+        }
+
     def get_indexers(self):
         """
         获取配置的prowlarr indexer
@@ -166,7 +179,7 @@ class ProwlarrExtend(_PluginBase):
             if not ret_indexers:
                 return []
             indexers = [{
-                "id": f'{self.plugin_name}-{v["indexerId"]}',
+                "id": f'{self.plugin_name}-{v["indexerName"]}',
                 "name": f'{self.plugin_name}-{v["indexerName"]}',
                 "url": f'{self._host}/api/v1/indexer/{v["indexerId"]}',
                 "domain": self.prowlarr_domain.replace(self.plugin_author, str(v["indexerId"])),
@@ -200,7 +213,7 @@ class ProwlarrExtend(_PluginBase):
                 logger.info(f"【{self.plugin_name}】开始检索Indexer：{site.get("name")} ...")
                 api_url = f"{self._host}/api/v1/search?query={keyword}&indexerIds={domain.split(".")[-1]}&type=search&limit=300&offset=0"
                 ret = RequestUtils(headers=headers).get_res(api_url)
-                if not ret or ret.json():
+                if not ret or not ret.json():
                     return []
                 ret_indexers = ret.json()
                 torrents = []
@@ -380,7 +393,8 @@ class ProwlarrExtend(_PluginBase):
                                         'props': {
                                             'type': 'info',
                                             'variant': 'tonal',
-                                            'text': '日志出现报如下错误时，可以不用管，由于插件没有检索到数据会触发后续模块检索，导致错误'
+                                            'text': '该种方式扩建检索，无法进行站点连通性监测，官方默认方式添加的正常不影响！'
+                                                    '日志出现报如下错误时，可以不用管，由于插件没有检索到数据会触发后续模块检索，导致错误'
                                                     'indexer - 【ProwlarrExtend】ACG.RIP 搜索出错：NoneType object has no attribute get'
                                         }
                                     }
@@ -429,7 +443,7 @@ class ProwlarrExtend(_PluginBase):
                     },
                     {
                         'component': 'td',
-                        'text': site.get("domain")
+                        'text': f"https://{site.get('domain')}"
                     },
                     {
                         'component': 'td',

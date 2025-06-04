@@ -1,4 +1,5 @@
 # _*_ coding: utf-8 _*_
+import copy
 import traceback
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
@@ -7,7 +8,6 @@ import pytz
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from cachetools import cached, TTLCache
 from app.helper.sites import SitesHelper
 
 from app.core.context import TorrentInfo
@@ -28,7 +28,7 @@ class JackettExtend(_PluginBase):
     # 插件图标
     plugin_icon = "Jackett_A.png"
     # 插件版本
-    plugin_version = "1.0"
+    plugin_version = "1.1"
     # 插件作者
     plugin_author = "jtcymc"
     # 作者主页
@@ -102,8 +102,9 @@ class JackettExtend(_PluginBase):
             domain = indexer.get("domain", "")
             site_info = self.sites_helper.get_indexer(domain)
             if not site_info:
+                new_indexer = copy.deepcopy(indexer)
                 # sites_helper 添加
-                self.sites_helper.add_indexer(domain, indexer)
+                self.sites_helper.add_indexer(domain, new_indexer)
 
     def get_status(self):
         """
@@ -201,7 +202,7 @@ class JackettExtend(_PluginBase):
             if not ret.json():
                 return []
             indexers = [{
-                "id": f'{self.plugin_name}-{v["id"]}',
+                "id": f'{self.plugin_name}-{v["name"]}',
                 "name": f'{self.plugin_name}-{v["name"]}',
                 "url": f'{self._host}/api/v2.0/indexers/{v["id"]}/results/torznab/',
                 "domain": self.jackett_domain.replace(self.plugin_author, v["id"]),
@@ -511,7 +512,8 @@ class JackettExtend(_PluginBase):
                                         'props': {
                                             'type': 'info',
                                             'variant': 'tonal',
-                                            'text': '日志出现报如下错误时，可以不用管，由于插件没有检索到数据会触发后续模块检索，导致错误'
+                                            'text': '该种方式扩建检索，无法进行站点连通性监测，官方默认方式添加的正常不影响！'
+                                                    '日志出现报如下错误时，可以不用管，由于插件没有检索到数据会触发后续模块检索，导致错误'
                                                     'indexer - 【JackettExtend】ACG.RIP 搜索出错：NoneType object has no attribute get'
                                         }
                                     }
@@ -562,7 +564,7 @@ class JackettExtend(_PluginBase):
                     },
                     {
                         'component': 'td',
-                        'text': site.get("domain")
+                        'text': f"https://{site.get('domain')}"
                     },
                     {
                         'component': 'td',
