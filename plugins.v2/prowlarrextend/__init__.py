@@ -25,7 +25,7 @@ class ProwlarrExtend(_PluginBase):
     # 插件图标
     plugin_icon = "Prowlarr.png"
     # 插件版本
-    plugin_version = "1.1"
+    plugin_version = "1.1.1"
     # 插件作者
     plugin_author = "jtcymc"
     # 作者主页
@@ -220,11 +220,13 @@ class ProwlarrExtend(_PluginBase):
                 for entry in ret_indexers:
                     tmp_dict = TorrentInfo(
                         title=entry["title"],
-                        enclosure=entry["downloadUrl"],
+                        enclosure=entry["downloadUrl"] if hasattr(entry, "downloadUrl") and entry["downloadUrl"] else
+                        entry["magnetUrl"],
                         description=entry["sortTitle"],
                         size=entry["size"],
                         seeders=entry["seeders"],
-                        page_url=entry["guid"],
+                        pubdate=entry["publishDate"],
+                        page_url=entry["infoUrl"] if hasattr(entry, "infoUrl") and entry["infoUrl"] else entry["guid"],
                     )
                     torrents.append(tmp_dict)
                 return torrents
