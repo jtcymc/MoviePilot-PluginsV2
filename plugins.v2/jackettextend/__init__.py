@@ -4,6 +4,8 @@ import traceback
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
 import xml.dom.minidom
+from urllib.parse import urlencode, quote_plus
+
 import pytz
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -28,7 +30,7 @@ class JackettExtend(_PluginBase):
     # 插件图标
     plugin_icon = "Jackett_A.png"
     # 插件版本
-    plugin_version = "1.1"
+    plugin_version = "1.2"
     # 插件作者
     plugin_author = "jtcymc"
     # 作者主页
@@ -147,71 +149,123 @@ class JackettExtend(_PluginBase):
     def search_torrents(self, site, keywords, mtype: Optional[MediaType] = None, page: Optional[int] = 0) -> List[
         TorrentInfo]:
         """
-        根据关键字检索
+        使用 Jackett Torznab API 根据关键字检索种子
         """
         results = []
+
         if not site or (site.get("name", "").split("-")[0] != self.plugin_name):
             return results
+
         domain = StringUtils.get_url_domain(site.get("domain", ""))
+        if not domain:
+            logger.warning(f"【{self.plugin_name}】站点域名无法解析")
+            return results
+
+        indexer_name = domain.split(".")[-1]
+        categories = self.get_cat(mtype)
+
         for keyword in keywords:
             if not keyword:
-                return results
-
-            logger.info(f"【{self.plugin_name}】开始检索Indexer：{site.get("name")}，关键字：【{keyword} ...】")
-            # 特殊符号处理
-            api_url = f"{self._host}/api/v2.0/indexers/{domain.split(".")[-1]}/results/torznab/?apikey={self._api_key}&t=search&q={keyword}"
-
-            result_array = self.__parse_torznab_xml(api_url)
-
-            if len(result_array) == 0:
-                logger.warn(f"【{self.plugin_name}】{site.get("name")} 未检索到数据")
                 continue
-            else:
-                logger.info(f"【{self.plugin_name}】{site.get("name")} 返回数据：{len(result_array)}")
+
+            try:
+                logger.info(f"【{self.plugin_name}】开始检索 Indexer：\"{site.get('name')}\"，关键词：\"{keyword}\"")
+
+                params = {
+                    "apikey": self._api_key,
+                    "t": "search",
+                    "q": keyword,
+                    "cat": ",".join(map(str, categories))
+                }
+                query_string = urlencode(params, quote_via=quote_plus)
+                api_url = f"{self._host.rstrip('/')}/api/v2.0/indexers/{indexer_name}/results/torznab/?{query_string}"
+
+                result_array = self.__parse_torznab_xml(api_url)
+
+                if not result_array:
+                    logger.warning(f"【{self.plugin_name}】Indexer：\"{site.get('name')}\" 未检索到数据")
+                    continue
+
+                logger.info(f"【{self.plugin_name}】Indexer：\"{site.get('name')}\" 返回数据：{len(result_array)} 条")
                 results.extend(result_array)
+
+            except Exception as e:
+                logger.error(f"【{self.plugin_name}】检索出错：{str(e)}")
+
         return results
+
+    @staticmethod
+    def get_cat(mtype: Optional[MediaType] = None):
+        if not mtype:
+            return [2000, 5000]
+        elif mtype == MediaType.MOVIE:
+            return [2000]
+        elif mtype == MediaType.TV:
+            return [5000]
+        else:
+            return [2000, 5000]
 
     def get_indexers(self):
         """
-        获取配置的jackett indexer
-        :return: indexer 信息 [(indexerId, indexerName, url)]
+        获取配置的 Jackett Indexer 信息
+        :return: Indexer 列表，每项包含 id、name、url、domain、public、proxy、parser
         """
-        # 获取Cookie
         headers = {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "User-Agent": settings.USER_AGENT,
             "X-Api-Key": self._api_key,
             "Accept": "application/json, text/javascript, */*; q=0.01"
         }
+
         cookie = None
         session = requests.session()
-        res = RequestUtils(headers=headers, session=session).post_res(
-            url=f"{self._host}/UI/Dashboard",
-            data={"password": self._password},
-            params={"password": self._password},
-            proxies=settings.PROXY if self._proxy else None
-        )
-        if res and session.cookies:
-            cookie = session.cookies.get_dict()
-        indexer_query_url = f"{self._host}/api/v2.0/indexers?configured=true"
+
         try:
-            ret = RequestUtils(headers=headers, cookies=cookie).get_res(indexer_query_url,
-                                                                        proxies=settings.PROXY if self._proxy else None)
-            if not ret:
+            login_url = f"{self._host.rstrip('/')}/UI/Dashboard"
+            login_data = {"password": self._password}
+            login_params = {"password": self._password}
+            login_res = RequestUtils(headers=headers, session=session).post_res(
+                url=login_url,
+                data=login_data,
+                params=login_params,
+                proxies=settings.PROXY if self._proxy else None
+            )
+            if login_res and session.cookies:
+                cookie = session.cookies.get_dict()
+            else:
+                logger.warning(f"【{self.plugin_name}】Jackett 登录失败，无法获取 cookie")
+
+            indexer_query_url = f"{self._host.rstrip('/')}/api/v2.0/indexers?configured=true"
+            ret = RequestUtils(headers=headers, cookies=cookie).get_res(
+                indexer_query_url,
+                proxies=settings.PROXY if self._proxy else None
+            )
+
+            if not ret or not ret.json():
+                logger.warning(f"【{self.plugin_name}】未获取到任何 indexer 配置")
                 return []
-            if not ret.json():
-                return []
-            indexers = [{
-                "id": f'{self.plugin_name}-{v["name"]}',
-                "name": f'{self.plugin_name}-{v["name"]}',
-                "url": f'{self._host}/api/v2.0/indexers/{v["id"]}/results/torznab/',
-                "domain": self.jackett_domain.replace(self.plugin_author, v["id"]),
-                "public": True,
-                "proxy": False,
-            } for v in ret.json()]
+
+            raw_indexers = ret.json()
+            indexers = []
+            for v in raw_indexers:
+                indexer_id = v.get("id")
+                indexer_name = v.get("name")
+                if not indexer_id or not indexer_name:
+                    continue
+
+                indexers.append({
+                    "id": f'{self.plugin_name}-{indexer_name}',
+                    "name": f'{self.plugin_name}-{indexer_name}',
+                    "url": f'{self._host.rstrip("/")}/api/v2.0/indexers/{indexer_id}/results/torznab/',
+                    "domain": self.jackett_domain.replace(self.plugin_author, str(indexer_id)),
+                    "public": True,
+                    "proxy": False,
+                })
+
             return indexers
+
         except Exception as e:
-            logger.error(str(e))
+            logger.error(f"【{self.plugin_name}】获取 Jackett indexers 失败：{str(e)}")
             return []
 
     def get_module(self) -> Dict[str, Any]:

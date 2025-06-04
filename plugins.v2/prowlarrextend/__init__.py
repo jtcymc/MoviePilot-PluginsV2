@@ -1,8 +1,10 @@
 # _*_ coding: utf-8 _*_
 import copy
+import traceback
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
-import re
+from urllib.parse import urlencode, quote_plus
+
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -25,7 +27,7 @@ class ProwlarrExtend(_PluginBase):
     # 插件图标
     plugin_icon = "Prowlarr.png"
     # 插件版本
-    plugin_version = "1.1.1"
+    plugin_version = "1.2"
     # 插件作者
     plugin_author = "jtcymc"
     # 作者主页
@@ -161,8 +163,9 @@ class ProwlarrExtend(_PluginBase):
 
     def get_indexers(self):
         """
-        获取配置的prowlarr indexer
-        :return: indexer 信息 [(indexerId, indexerName, url)]
+        获取配置的 Prowlarr Indexer 信息
+
+        :return: Indexer 列表，包含 id, name, url, domain, public, proxy 信息
         """
         headers = {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -170,70 +173,124 @@ class ProwlarrExtend(_PluginBase):
             "X-Api-Key": self._api_key,
             "Accept": "application/json, text/javascript, */*; q=0.01"
         }
-        indexer_query_url = f"{self._host}/api/v1/indexerstats"
+        indexer_query_url = f"{self._host.rstrip('/')}/api/v1/indexerstats"
         try:
             ret = RequestUtils(headers=headers).get_res(indexer_query_url)
-            if not ret or not ret.json():
+            if not ret:
+                logger.warning(f"【{self.plugin_name}】获取 indexer 请求无响应")
                 return []
-            ret_indexers = ret.json()["indexers"]
-            if not ret_indexers:
+
+            data = ret.json()
+            if not data or "indexers" not in data:
+                logger.warning(f"【{self.plugin_name}】返回数据不包含 indexers 字段")
                 return []
-            indexers = [{
-                "id": f'{self.plugin_name}-{v["indexerName"]}',
-                "name": f'{self.plugin_name}-{v["indexerName"]}',
-                "url": f'{self._host}/api/v1/indexer/{v["indexerId"]}',
-                "domain": self.prowlarr_domain.replace(self.plugin_author, str(v["indexerId"])),
-                "public": True,
-                "proxy": False,
-            } for v in ret_indexers]
+
+            indexers_raw = data.get("indexers", [])
+            if not indexers_raw:
+                logger.info(f"【{self.plugin_name}】未配置任何 indexer")
+                return []
+
+            indexers = []
+            for v in indexers_raw:
+                indexer_id = v.get("indexerId")
+                indexer_name = v.get("indexerName")
+                if not indexer_id or not indexer_name:
+                    continue
+
+                indexers.append({
+                    "id": f'{self.plugin_name}-{indexer_name}',
+                    "name": f'{self.plugin_name}-{indexer_name}',
+                    "url": f'{self._host.rstrip("/")}/api/v1/indexer/{indexer_id}',
+                    "domain": self.prowlarr_domain.replace(self.plugin_author, str(indexer_id)),
+                    "public": True,
+                    "proxy": False,
+                })
+
             return indexers
         except Exception as e:
-            logger.error(str(e))
+            logger.error(f"【{self.plugin_name}】获取 indexer 失败：{str(e)}")
             return []
 
     def search_torrents(self, site, keywords, mtype: Optional[MediaType] = None, page: Optional[int] = 0) -> List[
         TorrentInfo]:
         """
-        根据关键字检索
+        根据关键字检索种子
         """
         results = []
-        if not site or (site.get("name", "").split("-")[0] != self.plugin_name):
+
+        if not site or not keywords:
             return results
+
+        if site.get("name", "").split("-")[0] != self.plugin_name:
+            return results
+
+        # 提取 Indexer ID
+        domain = StringUtils.get_url_domain(site.get("domain", ""))
+        indexer_id = domain.split(".")[-1] if domain else ""
+        if not indexer_id:
+            logger.warning(f"【{self.plugin_name}】无法提取索引 ID，跳过站点：{site.get('name')}")
+            return results
+
+        # 构建请求头
         headers = {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             "User-Agent": settings.USER_AGENT,
             "X-Api-Key": self._api_key,
             "Accept": "application/json, text/javascript, */*; q=0.01"
         }
-        domain = StringUtils.get_url_domain(site.get("domain", ""))
-        try:
-            for keyword in keywords:
-                if not keyword:
-                    return results
-                logger.info(f"【{self.plugin_name}】开始检索Indexer：{site.get("name")} ...")
-                api_url = f"{self._host}/api/v1/search?query={keyword}&indexerIds={domain.split(".")[-1]}&type=search&limit=300&offset=0"
-                ret = RequestUtils(headers=headers).get_res(api_url)
-                if not ret or not ret.json():
-                    return []
-                ret_indexers = ret.json()
-                torrents = []
-                for entry in ret_indexers:
-                    tmp_dict = TorrentInfo(
-                        title=entry["title"],
-                        enclosure=entry["downloadUrl"] if hasattr(entry, "downloadUrl") and entry["downloadUrl"] else
-                        entry["magnetUrl"],
-                        description=entry["sortTitle"],
-                        size=entry["size"],
-                        seeders=entry["seeders"],
-                        pubdate=entry["publishDate"],
-                        page_url=entry["infoUrl"] if hasattr(entry, "infoUrl") and entry["infoUrl"] else entry["guid"],
+        categories = self.get_cat(mtype)
+        for keyword in keywords:
+            if not keyword:
+                continue
+            try:
+                logger.info(f"【{self.plugin_name}】开始检索 Indexer：{site.get('name')}，关键词：{keyword}")
+                params = [
+                             ("query", keyword),
+                             ("indexerIds", indexer_id),
+                             ("type", "search"),
+                             ("limit", 150),
+                             ("offset", page * 150 if page else 0),
+                         ] + [("categories", cat) for cat in categories]
+                query_string = urlencode(params, quote_via=quote_plus)
+                api_url = f"{self._host.rstrip('/')}/api/v1/search?{query_string}"
+
+                response = RequestUtils(headers=headers).get_res(api_url)
+                if not response:
+                    logger.warning(f"【{self.plugin_name}】{site.get('name')} 返回为空")
+                    continue
+
+                data = response.json()
+                if not isinstance(data, list):
+                    logger.warning(f"【{self.plugin_name}】{site.get('name')} 返回数据格式异常")
+                    continue
+
+                for entry in data:
+                    torrent = TorrentInfo(
+                        title=entry.get("title"),
+                        enclosure=entry.get("downloadUrl") or entry.get("magnetUrl"),
+                        description=entry.get("sortTitle"),
+                        size=entry.get("size"),
+                        seeders=entry.get("seeders"),
+                        pubdate=entry.get("publishDate"),
+                        page_url=entry.get("infoUrl") or entry.get("guid"),
                     )
-                    torrents.append(tmp_dict)
-                return torrents
-            return []
-        except Exception as e:
-            logger.error(str(e))
-            return []
+                    results.append(torrent)
+
+            except Exception as e:
+                logger.error(f"【{self.plugin_name}】检索错误：{str(e)}\n{traceback.format_exc()}")
+
+        return results
+
+    @staticmethod
+    def get_cat(mtype: Optional[MediaType] = None):
+        if not mtype:
+            return [2000, 5000]
+        elif mtype == MediaType.MOVIE:
+            return [2000]
+        elif mtype == MediaType.TV:
+            return [5000]
+        else:
+            return [2000, 5000]
 
     def get_form(self) -> Tuple[List[dict], Dict[str, Any]]:
         """
