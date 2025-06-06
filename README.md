@@ -6,9 +6,9 @@
 ## 使用说明
 1. 基础参数配置完成点击“保存”，再次点击插件“查看数据”
 2. 复制站点=>MP站点管理=>添加站点=>粘贴到“站点地址”=>保存
-![](./docs/imgs/plugins_domains.png)
-![](./docs/imgs/add_site.png)
-![](./docs/imgs/plugin_site.png)
+![](https://raw.githubusercontent.com/jtcymc/MoviePilot-PluginsV2/main/docs/imgs/plugins_domains.png)
+![](https://raw.githubusercontent.com/jtcymc/MoviePilot-PluginsV2/main/docs/imgs/add_site.png)
+![](https://raw.githubusercontent.com/jtcymc/MoviePilot-PluginsV2/main/docs/imgs/plugin_site.png)
 ## 插件目录
 
 ### V2 版本插件
